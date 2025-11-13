@@ -91,7 +91,7 @@ void refreshBoardDisplay(HANDLE* h, int8_t boardLayer[CELLROWS][CELLCOLS], WORD 
                 WriteConsoleOutputCharacterW(*h, FILLED_CELL, 2, getDisplayPositionOfCell(col, row), &_written);
 
                 // Set color based on value of cell
-                WriteConsoleOutputAttribute(*h, &_colors[currentCell - 1], 2, getDisplayPositionOfCell(col, row), &_written);
+                WriteConsoleOutputAttribute(*h, _colors[currentCell - 1], 2, getDisplayPositionOfCell(col, row), &_written);
             }
             else if (currentCell == 0) {
                 WriteConsoleOutputCharacterW(*h, L"  ", 2, getDisplayPositionOfCell(col, row), &_written);
@@ -154,7 +154,7 @@ void changeSideBoxDisplayShape(int8_t shape, int8_t mode, HANDLE* h, WORD baseCo
 
             if (currentCell) {
                 WriteConsoleOutputCharacterW(*h, FILLED_CELL, 2, displayPosition, &_written);
-                WriteConsoleOutputAttribute(*h, &_colors[shape], 2, displayPosition, &_written);
+                WriteConsoleOutputAttribute(*h, _colors[shape], 2, displayPosition, &_written);
             }
             else {
                 WriteConsoleOutputCharacterW(*h, L"  ", 2, displayPosition, &_written);
