@@ -21,5 +21,13 @@
     <ClCompile Include="shapes.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="conout.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="tetris.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

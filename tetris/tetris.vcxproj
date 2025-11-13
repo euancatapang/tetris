@@ -129,7 +129,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.c" />
+    <ClCompile Include="conout.c" />
     <ClCompile Include="shapes.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="tetris.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -7,123 +7,9 @@
 
 #include <windows.h>
 
-// BOARD CONSTANTS
-#define CELLROWS 20 // DEFAULT 20
-#define CELLCOLS 10 // DEFAULT 10
-
-#define ROWS (CELLROWS*1) // DEFAULT (CELLROWS*1)
-#define COLS (CELLCOLS*2) // DEFAULT (CELLROWS*2)
-
-#define BOARDHEIGHT (ROWS+2)
-#define BOARDWIDTH (COLS+2)
-
-#define CELL "\u2588\u2588"
-
-// BORDERS
-#define BORDER_WIDTH 1
-
-#define NEXT_PIECE 0 
-#define CACHE_BOX 11 // Y-axis offset
-
-// SHAPE PREVIEW OFFSET
-#define SHAPE_PREVIEW_OFFSET_X (BOARDWIDTH+7)
-#define SHAPE_PREVIEW_OFFSET_Y 2
-
-// INPUT ACTIONS
-#define LEFT 1
-#define RIGHT 2
-#define DOWN 3
-#define UP 4
-#define CLOCKWISE 5
-#define A_CLOCKWISE 6
-#define HARD_DOWN 7
-#define CACHE_PIECE 8
-
-// ACTION TYPES
-#define MOVE 1
-#define ROTATE 2
-#define SPECIAL 3
-
-// PLACE SHAPE MODES
-#define CLEAR 0
-#define PLACE_SHAPE 1
-
-#define NEEDS_KICK_FROM_RIGHT -1
-#define NEEDS_KICK_FROM_LEFT -2
-
-typedef struct {
-    int8_t x;
-    int8_t y;
-    int8_t shape;
-    int8_t rotation;
-    int8_t borderedBoardWithoutShape[CELLROWS + 2][CELLCOLS + 2];
-
-} Shape;
-
-WCHAR _cell[] = L"██"; // DEFAULT L"██"
-DWORD _written;
-
-#define _I 0
-#define _O 1
-#define _T 2
-#define _S 3
-#define _Z 4
-#define _J 5
-#define _L 6
-
-// Tetrominoes declared in separate file
-extern const int8_t _tetrominoes[7][4][4][4];
-extern const WORD _colors[7][2];
+#include "tetris.h"
 
 // FUNCTIONS
-void initializeDisplay() {
-
-    // Expand display area to fit board
-    for (int i = 0; i < BOARDHEIGHT; i++) {
-        printf("\n");
-    }
-}
-
-void printBorder(HANDLE* h) {
-
-    // Print top border
-    SetConsoleCursorPosition(*h, (COORD) { 0, 0 });
-    for (int j = 0; j < BOARDWIDTH; j++) {
-        printf("-");
-    }
-
-    // Print left and right border
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < BOARDHEIGHT; j++) {
-            SetConsoleCursorPosition(*h, (COORD) { i * (BOARDWIDTH - 1), j });
-            printf("|");
-        }
-    }
-}
-
-void printSideBoxesBorder(HANDLE* h, int8_t mode) {
-
-    // Print top and bottom box border
-    for (int i = 0; i < 2; i++) {
-        SetConsoleCursorPosition(*h, (COORD) { BOARDWIDTH + 3, (i * 7) + mode });
-
-        for (int j = 0; j < 16; j++) {
-            printf("-");
-        }
-    }
-
-    // Print left and right box border
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 8; j++) {
-            SetConsoleCursorPosition(*h, (COORD) { (i * 15) + (BOARDWIDTH + 3), j + mode });
-            printf("|");
-        }
-    }
-}
-
-COORD getDisplayPositionOfCell(int8_t xCellPos, int8_t yCellPos) {
-    return (COORD) { (xCellPos * 2) + 1, yCellPos + 1 };
-}
 
 void writeShapeToBoard(const Shape* shape, const int8_t mode, int8_t boardLayer[CELLROWS][CELLCOLS]) {
 
@@ -146,65 +32,6 @@ void writeShapeToBoard(const Shape* shape, const int8_t mode, int8_t boardLayer[
     }
 }
 
-void refreshBoardDisplay(HANDLE* h, int8_t boardLayer[CELLROWS][CELLCOLS], WORD baseConsoleAttributes) {
-
-    for (int row = 0; row < CELLROWS; row++) {
-        for (int col = 0; col < CELLCOLS; col++) {
-            int8_t currentCell = boardLayer[row][col];
-
-            // If cell is filled
-            if (currentCell == -1) {
-                WriteConsoleOutputCharacterW(*h, _cell, 2, getDisplayPositionOfCell(col, row), &_written);
-            }
-            else if (currentCell > 0) {
-                WriteConsoleOutputCharacterW(*h, _cell, 2, getDisplayPositionOfCell(col, row), &_written);
-
-                // Set color based on value of cell
-                WriteConsoleOutputAttribute(*h, &_colors[currentCell - 1], 2, getDisplayPositionOfCell(col, row), &_written);
-            }
-            else if (currentCell == 0) {
-                WriteConsoleOutputCharacterW(*h, L"  ", 2, getDisplayPositionOfCell(col, row), &_written);
-
-                // Clear cell
-                FillConsoleOutputAttribute(*h, baseConsoleAttributes, 2, getDisplayPositionOfCell(col, row), &_written);
-            }
-            else {
-                printf("EROR");
-            }
-        }
-    }
-}
-
-void getShapeFootprint(const Shape* shape, bool output[4]) {
-    for (int col = 0; col < 4; col++) {
-        for (int row = 0; row < 4; row++) {
-            if (_tetrominoes[shape->shape][shape->rotation][row][col]) {
-                output[col] = true;
-                break;
-            }
-        }
-    }
-}
-
-void updateShapeShadow(Shape* shape, HANDLE* h) {
-    bool shadow[4] = { false };
-    getShapeFootprint(shape, shadow);
-
-    int8_t offset = shape->x;
-
-    for (int x = 0; x < CELLCOLS; x++) {
-        COORD displayPosition = { BORDER_WIDTH + (x * 2), BOARDHEIGHT - 1 };
-
-        if (x >= offset && x < offset + 4) {
-            if (shadow[x - offset]) {
-                WriteConsoleOutputCharacterW(*h, L"##", 2, displayPosition, &_written);
-                continue;
-            }
-        }
-        WriteConsoleOutputCharacterW(*h, L"--", 2, displayPosition, &_written);
-    }
-}
-
 // Source does not contain current piece being controlled.
 void setupVirtualBoardWithBorders(int8_t destination[CELLROWS + 2][CELLCOLS + 2], const int8_t source[CELLROWS][CELLCOLS]) {
 
@@ -224,36 +51,40 @@ void setupVirtualBoardWithBorders(int8_t destination[CELLROWS + 2][CELLCOLS + 2]
 
 int8_t simulateShapePlacement(const Shape* shape, int8_t mode, int8_t virtualPlaceX, int8_t virtualPlaceY) {
 
+    // Constrain starts and ends to between 0 and CELLCOLS + 2
+    int8_t startX = (virtualPlaceX < 0) ? 0 : virtualPlaceX;
+    int8_t endX = (startX + 4 > CELLCOLS + 2) ? CELLCOLS + 2 : startX + 4;
+
+    int8_t startY = (virtualPlaceY < 0) ? 0 : virtualPlaceY;
+    int8_t endY = (startY + 4 > CELLROWS + 2) ? CELLROWS + 2 : startY + 4;
+
     int8_t needsKick = 0;
     
-    for (int virtualRow = 0; virtualRow < CELLROWS + 2; virtualRow++) {
-        for (int virtualCol = 0; virtualCol < CELLCOLS + 2; virtualCol++) {
+    for (int virtualRow = startY; virtualRow < endY; virtualRow++) {
+        for (int virtualCol = startX; virtualCol < endX; virtualCol++) {
 
-            if ((virtualCol >= virtualPlaceX && virtualCol < virtualPlaceX + 4) && 
-                (virtualRow >= virtualPlaceY && virtualRow < virtualPlaceY + 4)) {
+            int8_t currentCellSum = shape->borderedBoardWithoutShape[virtualRow][virtualCol] + 1;
 
-                int8_t currentCellSum = shape->borderedBoardWithoutShape[virtualRow][virtualCol] + 1;
+            int8_t tetrominoCellX = virtualCol - virtualPlaceX;
+            int8_t tetrominoCellY = virtualRow - virtualPlaceY;
+            int8_t currentCellIsFilled = _tetrominoes[shape->shape][shape->rotation][tetrominoCellY][tetrominoCellX];
 
-                int8_t tetrominoCellX = virtualCol - virtualPlaceX;
-                int8_t tetrominoCellY = virtualRow - virtualPlaceY;
-                int8_t currentCellIsFilled = _tetrominoes[shape->shape][shape->rotation][tetrominoCellY][tetrominoCellX];
+            if (currentCellIsFilled && currentCellSum > 1) {
 
-                if (currentCellIsFilled && currentCellSum > 1) {
-
-                    if (mode == ROTATE && tetrominoCellX >= 2) {
-                        needsKick = NEEDS_KICK_FROM_RIGHT;
-                    }
-                    else if (mode == ROTATE && tetrominoCellX <= 1) {
-                        needsKick = NEEDS_KICK_FROM_LEFT;
-                    }
-                    else {
-                        return 0;
-                    }
+                if (mode == ROTATE && tetrominoCellX >= 2) {
+                    needsKick = NEEDS_KICK_FROM_RIGHT;
+                }
+                else if (mode == ROTATE && tetrominoCellX <= 1) {
+                    needsKick = NEEDS_KICK_FROM_LEFT;
+                }
+                else {
+                    return 0;
                 }
             }
         }
     }
 
+    // Only return kick values after cycling through to ensure that no cell is invalid
     if (needsKick == NEEDS_KICK_FROM_LEFT || needsKick == NEEDS_KICK_FROM_RIGHT) {
         return needsKick;
     }
@@ -289,16 +120,6 @@ int8_t getLowestValidPlace(const Shape* shape) {
     }
 }
 
-bool placeShape(Shape* shape, int8_t boardLayer[CELLROWS][CELLCOLS]) {
-    bool placeIsValid = testIsPlaceValid(shape, MOVE);
-
-    if (placeIsValid) {
-        writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
-    }
-
-    return placeIsValid;
-}
-
 void fallShape(const Shape* shape, int8_t boardLayer[CELLROWS][CELLCOLS]) {
 
     int8_t lowestPossiblePlaceY = getLowestValidPlace(shape);
@@ -311,6 +132,16 @@ void fallShape(const Shape* shape, int8_t boardLayer[CELLROWS][CELLCOLS]) {
         writeShapeToBoard(shape, CLEAR, boardLayer);
         writeShapeToBoard(&fellShape, PLACE_SHAPE, boardLayer);
     }
+}
+
+bool placeShape(Shape* shape, int8_t boardLayer[CELLROWS][CELLCOLS]) {
+    bool placeIsValid = testIsPlaceValid(shape, MOVE);
+
+    if (placeIsValid) {
+        writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
+    }
+
+    return placeIsValid;
 }
 
 // Returns if move succeeded
@@ -346,12 +177,9 @@ bool rotateShape(int8_t rotateTowards, Shape* shape, int8_t boardLayer[CELLROWS]
     int8_t resultingRotation;
     
     if (rotateTowards == CLOCKWISE)
-        resultingRotation = shape->rotation + 1;
+        resultingRotation = (shape->rotation + 1 + 4) % 4;
     else
-        resultingRotation = shape->rotation - 1;
-
-    if (resultingRotation == 4)         resultingRotation = 0;
-    else if (resultingRotation == -1)   resultingRotation = 3;
+        resultingRotation = (shape->rotation - 1 + 4) % 4;
 
     Shape rotatedShape = *shape;
     rotatedShape.rotation = resultingRotation;
@@ -433,8 +261,10 @@ bool rowIsFilled(int8_t row[CELLCOLS]) {
     return true;
 }
 
-void adjustForFilledRows(int8_t boardLayer[CELLROWS][CELLCOLS]) {
-    
+// Clears rows filled upon committing a shape; Returns how many rows cleared
+int8_t getClearableRows(int8_t boardLayer[CELLROWS][CELLCOLS]) {
+    int8_t rowsCleared = 0;
+
     for (int row = 0; row < CELLROWS; row++) {
 
         if (rowIsFilled(boardLayer[row])) {
@@ -445,35 +275,22 @@ void adjustForFilledRows(int8_t boardLayer[CELLROWS][CELLCOLS]) {
                     boardLayer[rowToFill][col] = boardLayer[rowToFill - 1][col];
                 }
             }
+            rowsCleared++;
         }
     }
+
+    return rowsCleared;
 }
 
-void changeSideBoxDisplayShape(int8_t shape, int8_t mode, HANDLE* h, WORD baseConsoleAttributes) {
+// Calculates score gained based on rows cleared
+int16_t calculateScore(int8_t rowsCleared) {
+    int16_t scores[5] = { 0, 40, 100, 300, 1200 };
 
-    for (int row = 0; row < 4; row++) {
-        for (int col = 0; col < 4; col++) {
-
-            int8_t currentCell = _tetrominoes[shape][0][row][col];
-            COORD displayPosition = getDisplayPositionOfCell(col, row);
-
-            displayPosition.X += SHAPE_PREVIEW_OFFSET_X;
-            displayPosition.Y += SHAPE_PREVIEW_OFFSET_Y + mode;
-
-            if (currentCell) {
-                WriteConsoleOutputCharacterW(*h, _cell, 2, displayPosition, &_written);
-                WriteConsoleOutputAttribute(*h, &_colors[shape], 2, displayPosition, &_written);
-            }
-            else {
-                WriteConsoleOutputCharacterW(*h, L"  ", 2, displayPosition, &_written);
-                FillConsoleOutputAttribute(*h, baseConsoleAttributes, 2, displayPosition, &_written);
-            }
-        }
-    }
+    return scores[rowsCleared];
 }
 
 void ESCAPEFROMBOARD() {
-    for (int i = 0; i < BOARDHEIGHT + 1; i++) {
+    for (int i = 0; i < BOARD_HEIGHT + 1; i++) {
         printf("\n");
     }
 }
@@ -491,12 +308,18 @@ int main() {
     WORD baseConsoleAttributes;
     GetConsoleScreenBufferInfo(h, &info);
     baseConsoleAttributes = info.wAttributes;
+    
+    // Set console size
+    SMALL_RECT consoleArea = { 0, 0, BOARD_WIDTH * 2, BOARD_HEIGHT + CONTROLS_OFFSET + 7 };
+    SetConsoleWindowInfo(h, true, &consoleArea);
 
     // Initialization
     initializeDisplay(); // Stretch printable area out to fit board
     printBorder(&h);
     printSideBoxesBorder(&h, CACHE_BOX);
     printSideBoxesBorder(&h, NEXT_PIECE);
+    printControls(&h);
+    initializeScoreDisplay(&h);
 
     // Starting shape
     int8_t boardLayer[CELLROWS][CELLCOLS] = { 0 }; // [ROW][COL] = 20, 10
@@ -505,17 +328,29 @@ int main() {
     // Input and time variables
     char input = 0;
 
+    int previousScore = -1;
+    int score = 0;
+
     time_t timeOfLastMoveDown = time(NULL);
     bool failedMoveDown = true;
 
     int8_t nextShape = rand() % 7;
+
     int8_t cachedPiece = -1; // Indicating no piece has been cached
-    int8_t cachePieceAllowed = -1;
+    int8_t cachePieceAllowed = false;
 
     while (1) {
+
+        Sleep(10);
+
         if (failedMoveDown) {
             
-            adjustForFilledRows(boardLayer);
+            score += calculateScore(getClearableRows(boardLayer));
+
+            if (score > previousScore) {
+                updateScoreDisplay(score, &h);
+                previousScore = score;
+            }
 
             // Commits previous shape and creates a new one
             currentShape.x = 3;
@@ -541,6 +376,7 @@ int main() {
         failedMoveDown = checkMoveShapeDown(&timeOfLastMoveDown, &currentShape, boardLayer, &h, baseConsoleAttributes);
 
         if (_kbhit()) {
+
             input = _getch();
             int8_t action = 0;
             int8_t actionType = 0;
@@ -557,7 +393,10 @@ int main() {
                 case 'r': action = CACHE_PIECE; actionType = SPECIAL; break;
 
                 case 'p': exit(0); break;
+                default: continue;
             }
+
+            // If made past this point, it means input has valid action.
 
             if (actionType == MOVE) {
                 if (action == HARD_DOWN) {
@@ -566,18 +405,11 @@ int main() {
                 }
                 else {
                     moveShape(action, &currentShape, boardLayer);
-                }
-
-                refreshBoardDisplay(&h, boardLayer, baseConsoleAttributes);
-
-                if (action == LEFT || action == RIGHT)
-                    updateShapeShadow(&currentShape, &h);
+                }        
             }
 
             else if (actionType == ROTATE) {
                 rotateShape(action, &currentShape, boardLayer);
-                refreshBoardDisplay(&h, boardLayer, baseConsoleAttributes);
-                updateShapeShadow(&currentShape, &h);
             }
 
             else if (action == CACHE_PIECE && cachePieceAllowed == true) {
@@ -600,17 +432,18 @@ int main() {
                 currentShape.rotation = 0;
 
                 placeShape(&currentShape, boardLayer);
-                refreshBoardDisplay(&h, boardLayer, baseConsoleAttributes);
-                updateShapeShadow(&currentShape, &h);
                 changeSideBoxDisplayShape(cachedPiece, CACHE_BOX, &h, baseConsoleAttributes);
                 changeSideBoxDisplayShape(nextShape, NEXT_PIECE, &h, baseConsoleAttributes);
 
                 cachePieceAllowed = false;
+            }
 
+            // Refresh board display because reaching this point means a valid action was done.
+            refreshBoardDisplay(&h, boardLayer, baseConsoleAttributes);
+            if (action != DOWN) {
+                updateShapeShadow(&currentShape, &h);
             }
         }
-
-        Sleep(10);
     }
     
     ESCAPEFROMBOARD();
