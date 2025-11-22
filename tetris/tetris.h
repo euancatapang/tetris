@@ -59,8 +59,16 @@
 #define _J 5
 #define _L 6
 
+// DEFAULT SHAPE SPAWN
+#define DEFAULT_X 3
+#define DEFAULT_Y 0
+#define DEFAULT_ROTATION 0
+
 // CELL
 #define FILLED_CELL L"██"
+
+// BAG RANDOMIZER
+#define BAG_SIZE 7
 
 // HARDCODED TETROMINOES
 extern const int8_t _tetrominoes[7][4][4][4];
@@ -75,6 +83,12 @@ typedef struct {
     int8_t borderedBoardWithoutShape[CELLROWS + 2][CELLCOLS + 2];
 
 } Shape;
+
+typedef struct {
+    uint8_t name;
+    uint8_t type;
+
+} Action;
 
 
 // FUNCTION TEMPLATES

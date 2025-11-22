@@ -262,7 +262,7 @@ bool rowIsFilled(int8_t row[CELLCOLS]) {
 }
 
 // Clears rows filled upon committing a shape; Returns how many rows cleared
-int8_t getClearableRows(int8_t boardLayer[CELLROWS][CELLCOLS]) {
+int8_t getAndClearFilledRows(int8_t boardLayer[CELLROWS][CELLCOLS]) {
     int8_t rowsCleared = 0;
 
     for (int row = 0; row < CELLROWS; row++) {
@@ -287,6 +287,40 @@ int16_t calculateScore(int8_t rowsCleared) {
     int16_t scores[5] = { 0, 40, 100, 300, 1200 };
 
     return scores[rowsCleared];
+}
+
+void populateBag(uint8_t bag[7]) {
+
+    // Shapes are 0 to 6 inclusive
+    bool shapeHasBeenSelected[7] = {false};
+    
+    uint8_t bagIndex = 0;
+    for (uint8_t spaceRemaining = 7; spaceRemaining > 0; spaceRemaining--) {
+
+        uint8_t unselectedShapeToChoose = rand() % spaceRemaining;
+
+        int8_t unselectedShapesSeen = -1;
+        for (int i = 0; unselectedShapesSeen < spaceRemaining && i < 7; i++) {
+
+            if (!shapeHasBeenSelected[i]) {
+                unselectedShapesSeen++;
+            }
+
+            if (unselectedShapesSeen == unselectedShapeToChoose) {
+                shapeHasBeenSelected[i] = true;
+                bag[bagIndex] = i;
+                bagIndex++;
+                break;
+            }
+        }
+    }
+}
+
+void repopulateBagIfNeeded(uint8_t bag[BAG_SIZE], uint8_t* bagIndex) {
+    if (*bagIndex == BAG_SIZE) {
+        populateBag(bag);
+        *bagIndex = 0;
+    }
 }
 
 void ESCAPEFROMBOARD() {
@@ -325,16 +359,19 @@ int main() {
     int8_t boardLayer[CELLROWS][CELLCOLS] = { 0 }; // [ROW][COL] = 20, 10
     Shape currentShape;
 
+    // Bag randomization
+    uint8_t shapeBag[BAG_SIZE];
+    uint8_t bagIndex = 0; // Signifying bag is empty
+    populateBag(shapeBag);
+
     // Input and time variables
     char input = 0;
 
-    int previousScore = -1;
-    int score = 0;
+    int32_t previousScore = -1;
+    int32_t score = 0;
 
     time_t timeOfLastMoveDown = time(NULL);
     bool failedMoveDown = true;
-
-    int8_t nextShape = rand() % 7;
 
     int8_t cachedPiece = -1; // Indicating no piece has been cached
     int8_t cachePieceAllowed = false;
@@ -343,33 +380,38 @@ int main() {
 
         Sleep(10);
 
+        // If shape is committed to place point
         if (failedMoveDown) {
             
-            score += calculateScore(getClearableRows(boardLayer));
-
+            // Score updating
+            score += calculateScore(getAndClearFilledRows(boardLayer));
             if (score > previousScore) {
                 updateScoreDisplay(score, &h);
                 previousScore = score;
             }
 
             // Commits previous shape and creates a new one
-            currentShape.x = 3;
-            currentShape.y = 0;
-            currentShape.shape = nextShape;
-            currentShape.rotation = 0;
+            currentShape.x = DEFAULT_X;
+            currentShape.y = DEFAULT_Y;
+            currentShape.rotation = DEFAULT_ROTATION;
+
+            currentShape.shape = shapeBag[bagIndex];
+            bagIndex++;
+            
             setupVirtualBoardWithBorders(currentShape.borderedBoardWithoutShape, boardLayer);
 
-            nextShape = rand() % 7;
+            repopulateBagIfNeeded(shapeBag, &bagIndex);
 
             // Check if shape can be placed. If not, you've lost
             if (!testIsPlaceValid(&currentShape, MOVE)) {
                 break;
             }
 
+            // Update visuals
             placeShape(&currentShape, boardLayer);
             updateShapeShadow(&currentShape, &h);
             refreshBoardDisplay(&h, boardLayer, baseConsoleAttributes);
-            changeSideBoxDisplayShape(nextShape, NEXT_PIECE, &h, baseConsoleAttributes);
+            changeSideBoxDisplayShape(shapeBag[bagIndex], NEXT_PIECE, &h, baseConsoleAttributes);
 
             cachePieceAllowed = true;
         }
@@ -378,19 +420,18 @@ int main() {
         if (_kbhit()) {
 
             input = _getch();
-            int8_t action = 0;
-            int8_t actionType = 0;
+            Action action;
 
             switch (input) {
-                case 'a': action = LEFT; actionType = MOVE; break;
-                case 'd': action = RIGHT; actionType = MOVE; break;
-                case 's': action = DOWN; actionType = MOVE; break;
-                case ' ': action = HARD_DOWN; actionType = MOVE; break;
+                case 'a': action = (Action){ LEFT, MOVE }; break;
+                case 'd': action = (Action){ RIGHT, MOVE }; break;
+                case 's': action = (Action){ DOWN, MOVE }; break;
+                case ' ': action = (Action){ HARD_DOWN, MOVE }; break;
 
-                case 'e': action = CLOCKWISE; actionType = ROTATE; break;
-                case 'q': action = A_CLOCKWISE; actionType = ROTATE; break;
+                case 'e': action = (Action){ CLOCKWISE, ROTATE }; break;
+                case 'q': action = (Action){ A_CLOCKWISE, ROTATE }; break;
 
-                case 'r': action = CACHE_PIECE; actionType = SPECIAL; break;
+                case 'r': action = (Action){ CACHE_PIECE, SPECIAL }; break;
 
                 case 'p': exit(0); break;
                 default: continue;
@@ -398,28 +439,31 @@ int main() {
 
             // If made past this point, it means input has valid action.
 
-            if (actionType == MOVE) {
-                if (action == HARD_DOWN) {
+            if (action.type == MOVE) {
+                if (action.name == HARD_DOWN) {
                     fallShape(&currentShape, boardLayer);
                     failedMoveDown = true;
                 }
                 else {
-                    moveShape(action, &currentShape, boardLayer);
+                    moveShape(action.name, &currentShape, boardLayer);
                 }        
             }
 
-            else if (actionType == ROTATE) {
-                rotateShape(action, &currentShape, boardLayer);
+            else if (action.type == ROTATE) {
+                rotateShape(action.name, &currentShape, boardLayer);
             }
 
-            else if (action == CACHE_PIECE && cachePieceAllowed == true) {
+            else if (action.name == CACHE_PIECE && cachePieceAllowed == true) {
                 writeShapeToBoard(&currentShape, CLEAR, boardLayer);
 
                 // If cache slot is empty
                 if (cachedPiece == -1) {
                     cachedPiece = currentShape.shape;
-                    currentShape.shape = nextShape;
-                    nextShape = rand() % 7;
+                    currentShape.shape = shapeBag[bagIndex];
+                    bagIndex++;
+                    
+                    repopulateBagIfNeeded(shapeBag, &bagIndex);
+                    changeSideBoxDisplayShape(shapeBag[bagIndex], NEXT_PIECE, &h, baseConsoleAttributes);
                 }
                 else {
                     int8_t temp = currentShape.shape;
@@ -427,20 +471,19 @@ int main() {
                     cachedPiece = temp;
                 }
 
-                currentShape.x = 3;
-                currentShape.y = 0;
-                currentShape.rotation = 0;
+                currentShape.x = DEFAULT_X;
+                currentShape.y = DEFAULT_Y;
+                currentShape.rotation = DEFAULT_ROTATION;
 
                 placeShape(&currentShape, boardLayer);
                 changeSideBoxDisplayShape(cachedPiece, CACHE_BOX, &h, baseConsoleAttributes);
-                changeSideBoxDisplayShape(nextShape, NEXT_PIECE, &h, baseConsoleAttributes);
 
                 cachePieceAllowed = false;
             }
 
             // Refresh board display because reaching this point means a valid action was done.
             refreshBoardDisplay(&h, boardLayer, baseConsoleAttributes);
-            if (action != DOWN) {
+            if (action.name != DOWN) {
                 updateShapeShadow(&currentShape, &h);
             }
         }
