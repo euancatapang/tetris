@@ -94,16 +94,14 @@ int8_t getLowestValidPlace(const Shape* shape) {
     }
 }
 
-void fallShape(const Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
+void fallShape(Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
     int8_t lowestPossiblePlaceY = getLowestValidPlace(shape);
 
     if (lowestPossiblePlaceY != -1) {
-
-        Shape fellShape = *shape;
-        fellShape.y = lowestPossiblePlaceY;
-
         writeShapeToBoard(shape, CLEAR, boardLayer);
-        writeShapeToBoard(&fellShape, PLACE_SHAPE, boardLayer);
+
+        shape->y = lowestPossiblePlaceY;
+        writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
     }
 }
 
@@ -127,71 +125,84 @@ bool moveShape(ActionInput direction, Shape* shape, int8_t boardLayer[TETROMINO_
         case INPUT_DOWN: yOffset = 1; break;
     }
 
-    Shape movedShape = *shape;
-    movedShape.x += xOffset;
-    movedShape.y += yOffset;
+    // Move shape to coords to check
+    shape->x += xOffset;
+    shape->y += yOffset;
 
-    PlacementValidity validity = testPlaceValidity(&movedShape, ACTION_TYPE_MOVE);
+    PlacementValidity validity = testPlaceValidity(shape, ACTION_TYPE_MOVE);
 
     if (validity == PLACE_VALID) {
+        // Move shape to original place then clear it
+        shape->x -= xOffset;
+        shape->y -= yOffset;
         writeShapeToBoard(shape, CLEAR, boardLayer);
-        writeShapeToBoard(&movedShape, PLACE_SHAPE, boardLayer);
 
+        // Move shape to new place then write it
         shape->x += xOffset;
         shape->y += yOffset;
+        writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
+
         return true;
     }
+
+    // If move is invalid, move shape to original place
+    shape->x -= xOffset;
+    shape->y -= yOffset;
     return false;
 }
 
 // Returns true if rotate succeeded
 bool rotateShape(ActionInput rotateTowards, Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
-    int8_t resultingRotation;
+    int8_t newRotation;
 
     if (rotateTowards == INPUT_CLOCKWISE)
-        resultingRotation = (shape->rotation + 1 + 4) % 4;
+        newRotation = (shape->rotation + 1 + 4) % 4;
     else
-        resultingRotation = (shape->rotation - 1 + 4) % 4;
+        newRotation = (shape->rotation - 1 + 4) % 4;
 
-    Shape rotatedShape = *shape;
-    rotatedShape.rotation = resultingRotation;
+    int8_t originalRotation = shape->rotation;
+    int8_t originalX = shape->x;
+    shape->rotation = newRotation;
 
-    PlacementValidity validity = testPlaceValidity(&rotatedShape, ACTION_TYPE_ROTATE);
+    PlacementValidity validity = testPlaceValidity(shape, ACTION_TYPE_ROTATE);
 
-    if (validity == PLACE_INVALID) {
-        return false;
-    }
-    else if (validity == PLACE_VALID) {
-
+    if (validity == PLACE_VALID) {
+        shape->rotation = originalRotation;
         writeShapeToBoard(shape, CLEAR, boardLayer);
-        writeShapeToBoard(&rotatedShape, PLACE_SHAPE, boardLayer);
 
-        shape->rotation = resultingRotation;
+        shape->rotation = newRotation;
+        writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
 
         return true;
     }
-    else { // If validity is a KICK 
-
+    else if (validity == PLACE_KICK_FROM_LEFT || validity == PLACE_KICK_FROM_RIGHT) {
         // To handle I shape edge case
         if (shape->shape == _I && shape->x == -2 && validity == PLACE_KICK_FROM_LEFT)
-            rotatedShape.x += 2;
+            shape->x += 2;
         else if (validity == PLACE_KICK_FROM_RIGHT)
-            rotatedShape.x -= 1;
+            shape->x -= 1;
         else if (validity == PLACE_KICK_FROM_LEFT)
-            rotatedShape.x += 1;
+            shape->x += 1;
 
-        if (testPlaceValidity(&rotatedShape, ACTION_TYPE_MOVE)) {
-
-            // Clear previous shape from board
+        if (testPlaceValidity(shape, ACTION_TYPE_MOVE)) {
+            int8_t newX = shape->x;
+            
+            shape->rotation = originalRotation;
+            shape->x = originalX;
             writeShapeToBoard(shape, CLEAR, boardLayer);
-            writeShapeToBoard(&rotatedShape, PLACE_SHAPE, boardLayer);
 
-            shape->x = rotatedShape.x;
-            shape->rotation = resultingRotation;
+            shape->rotation = newRotation;
+            shape->x = newX;
+            writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
+
             return true;
         }
-        return false;
     }
+
+    // If rotation is invalid
+    shape->rotation = originalRotation;
+    shape->x = originalX;
+    return false;
 }
 
 MoveDownStatus checkMoveDownFailure(uint32_t* timeOfLastMoveDown, Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {

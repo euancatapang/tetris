@@ -16,8 +16,6 @@ typedef struct {
 
 // FUNCTION TEMPLATES
 
-// display.c (Console Output)
-
 // INITIAL SETUP
 void initializeDisplay(Terminal* terminal);
 void setupGameBoard(Terminal* terminal);

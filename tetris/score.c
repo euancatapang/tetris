@@ -1,10 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "score.h"
-
-// Functions
-
 void writeHighScore(const char* fileName, uint32_t score) {
 	FILE* scoreFile = fopen(fileName, "w");
 

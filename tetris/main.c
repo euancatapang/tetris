@@ -34,7 +34,7 @@ void populateBag(Bag* bag) {
 
 int8_t getShapeFromBag(Bag* bag) {
     int8_t newShape = bag->shapes[bag->index];
-    (bag->index) += 1;
+    bag->index += 1;
 
     if (bag->index == BAG_SIZE) {
         populateBag(bag);
@@ -43,7 +43,7 @@ int8_t getShapeFromBag(Bag* bag) {
     return newShape;
 }
 
-int8_t translateInput(char input, Action* action) {
+bool translateInput(char input, Action* action) {
     switch (input) {
         case 'a': *action = (Action){ INPUT_LEFT, ACTION_TYPE_MOVE }; break;
         case 'd': *action = (Action){ INPUT_RIGHT, ACTION_TYPE_MOVE }; break;
@@ -53,9 +53,9 @@ int8_t translateInput(char input, Action* action) {
         case 'q': *action = (Action){ INPUT_A_CLOCKWISE, ACTION_TYPE_ROTATE }; break;
         case 'r': *action = (Action){ INPUT_CACHE_PIECE, ACTION_TYPE_SPECIAL }; break;
         case 'p': exit(0); break;
-        default: return 0;
+        default: return false;
     }
-    return 1;
+    return true;
 }
 
 void createShape(Shape* dest, int8_t x, int8_t y, int8_t shape, int8_t rotation) {
