@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <conio.h>
-#include <time.h>
 #include <windows.h>
 
 #include "tetris.h"
@@ -18,7 +17,6 @@ int16_t calculateScore(uint8_t rowsCleared) {
 }
 
 void populateBag(Bag* bag) {
-
     // Create unshuffled bag
     for (uint8_t i = 0; i < BAG_SIZE; i++) {
         bag->shapes[i] = i % 7;
@@ -47,17 +45,16 @@ int8_t getShapeFromBag(Bag* bag) {
 
 int8_t translateInput(char input, Action* action) {
     switch (input) {
-        case 'a': *action = (Action){ LEFT, MOVE }; break;
-        case 'd': *action = (Action){ RIGHT, MOVE }; break;
-        case 's': *action = (Action){ DOWN, MOVE }; break;
-        case ' ': *action = (Action){ HARD_DOWN, MOVE }; break;
-        case 'e': *action = (Action){ CLOCKWISE, ROTATE }; break;
-        case 'q': *action = (Action){ A_CLOCKWISE, ROTATE }; break;
-        case 'r': *action = (Action){ CACHE_PIECE, SPECIAL }; break;
+        case 'a': *action = (Action){ INPUT_LEFT, ACTION_TYPE_MOVE }; break;
+        case 'd': *action = (Action){ INPUT_RIGHT, ACTION_TYPE_MOVE }; break;
+        case 's': *action = (Action){ INPUT_DOWN, ACTION_TYPE_MOVE }; break;
+        case ' ': *action = (Action){ INPUT_HARD_DOWN, ACTION_TYPE_MOVE }; break;
+        case 'e': *action = (Action){ INPUT_CLOCKWISE, ACTION_TYPE_ROTATE }; break;
+        case 'q': *action = (Action){ INPUT_A_CLOCKWISE, ACTION_TYPE_ROTATE }; break;
+        case 'r': *action = (Action){ INPUT_CACHE_PIECE, ACTION_TYPE_SPECIAL }; break;
         case 'p': exit(0); break;
         default: return 0;
     }
-
     return 1;
 }
 
@@ -82,11 +79,9 @@ void updateScores(Terminal* terminal, Scores* scores, uint8_t rowsCleared) {
 }
 
 int main() {
-
     // Initialization
     Terminal terminal;
     initializeDisplay(&terminal); // windows.h terminal setup
-
     setupGameBoard(&terminal);
 
     Scores scores = { 0, 0, readHighScore(SCORE_FILE) };
@@ -97,15 +92,15 @@ int main() {
     Shape currentShape;
 
     // Bag randomization
-    srand((unsigned int)time(NULL));
+    srand((uint32_t)GetTickCount());
 
     Bag bag = { 0, 0 };
     populateBag(&bag);
     int8_t nextShape = getShapeFromBag(&bag);
 
     // Input and time variables 
-    time_t timeOfLastMoveDown = time(NULL);
-    int8_t failedMoveDown = 1;
+    uint32_t timeOfLastMoveDown = GetTickCount();
+    MoveDownStatus moveDownStatus = MOVE_DOWN_FAIL;
 
     int8_t cachedPiece = -1; // Indicating no piece has been cached
     int8_t cachePieceAllowed = false;
@@ -114,7 +109,7 @@ int main() {
         Sleep(10);
 
         // If shape is committed to place point
-        if (failedMoveDown == 1) {
+        if (moveDownStatus == MOVE_DOWN_FAIL) {
             updateScores(&terminal, &scores, getRowsCleared(boardLayer));
 
             // Commits previous shape and creates a new one
@@ -125,9 +120,8 @@ int main() {
             setupVirtualBoardWithBorders(currentShape.borderedBoardWithoutShape, boardLayer);
 
             // Check if shape can be placed. If not, you've lost.
-            if (!testPlaceValidity(&currentShape, MOVE)) {
+            if (!testPlaceValidity(&currentShape, ACTION_TYPE_MOVE))
                 break;
-            }
 
             // Update visuals
             placeShape(&currentShape, boardLayer);
@@ -137,10 +131,10 @@ int main() {
 
             cachePieceAllowed = true;
         }
-        else if (failedMoveDown == 2) {
+        else if (moveDownStatus == MOVE_DOWN_SUCCESS) {
             refreshBoardDisplay(&terminal, boardLayer);
         }
-        failedMoveDown = checkMoveDownFailure(&timeOfLastMoveDown, &currentShape, boardLayer);
+        moveDownStatus = checkMoveDownFailure(&timeOfLastMoveDown, &currentShape, boardLayer);
 
         if (_kbhit()) {
             char input = _getch();
@@ -149,21 +143,21 @@ int main() {
             if (!translateInput(input, &action)) continue;
 
             // If made past this point, it means input has valid action.
-            if (action.type == MOVE) {
-                if (action.name == HARD_DOWN) {
+            if (action.type == ACTION_TYPE_MOVE) {
+                if (action.input == INPUT_HARD_DOWN) {
                     fallShape(&currentShape, boardLayer);
-                    failedMoveDown = true;
+                    moveDownStatus = MOVE_DOWN_FAIL;
                 }
                 else {
-                    moveShape(action.name, &currentShape, boardLayer);
+                    moveShape(action.input, &currentShape, boardLayer);
                 }        
             }
 
-            else if (action.type == ROTATE) {
-                rotateShape(action.name, &currentShape, boardLayer);
+            else if (action.type == ACTION_TYPE_ROTATE) {
+                rotateShape(action.input, &currentShape, boardLayer);
             }
 
-            else if (action.name == CACHE_PIECE && cachePieceAllowed == true) {
+            else if (action.input == INPUT_CACHE_PIECE && cachePieceAllowed == true) {
                 writeShapeToBoard(&currentShape, CLEAR, boardLayer);
 
                 int8_t newShape;
@@ -191,7 +185,7 @@ int main() {
 
             // Refresh board display because reaching this point means a valid action was done.
             refreshBoardDisplay(&terminal, boardLayer);
-            if (action.name != DOWN) {
+            if (action.input != INPUT_DOWN) {
                 updateShapeShadow(&terminal, &currentShape);
             }
         }
@@ -200,6 +194,7 @@ int main() {
     bool gotNewHighScore = scores.score > scores.highScore;
     if (gotNewHighScore) 
         writeHighScore(SCORE_FILE, scores.score);
+
     showLoseScreen(&terminal, scores.score, gotNewHighScore);
 
     _getch();

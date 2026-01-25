@@ -26,28 +26,9 @@
 // CONTROLS OFFSET
 #define CONTROLS_OFFSET 1
 
-// INPUT ACTIONS
-#define LEFT 1
-#define RIGHT 2
-#define DOWN 3
-#define UP 4
-#define CLOCKWISE 5
-#define A_CLOCKWISE 6
-#define HARD_DOWN 7
-#define CACHE_PIECE 8
-
-// ACTION TYPES
-#define MOVE 1
-#define ROTATE 2
-#define SPECIAL 3
-
 // PLACE SHAPE MODES
 #define CLEAR 0
 #define PLACE_SHAPE 1
-
-#define NEEDS_KICK_FROM_RIGHT -1
-#define NEEDS_KICK_FROM_LEFT -2
-#define NEEDS_KICK_FROM_TOP -3
 
 // TETROMINOES
 #define _I 0
@@ -72,11 +53,47 @@
 // BAG RANDOMIZER
 #define BAG_SIZE 7
 
+// MOVE SHAPE DOWN INTERVAL
+#define MOVE_DOWN_INTERVAL_MS 1000
+
 // HARDCODED TETROMINOES
 extern const int8_t _tetrominoes[7][4][4][4];
 extern const WORD _colors[7];
 
-// GLOBALS
+typedef enum {
+    PLACE_INVALID,
+    PLACE_VALID,
+    PLACE_KICK_FROM_LEFT,
+    PLACE_KICK_FROM_RIGHT
+
+} PlacementValidity;
+
+typedef enum {
+    MOVE_DOWN_NO_CHANGE,
+    MOVE_DOWN_FAIL,
+    MOVE_DOWN_SUCCESS,
+
+} MoveDownStatus;
+
+typedef enum {
+    INPUT_LEFT,
+    INPUT_RIGHT,
+    INPUT_DOWN,
+    INPUT_UP,
+    INPUT_CLOCKWISE,
+    INPUT_A_CLOCKWISE,
+    INPUT_HARD_DOWN,
+    INPUT_CACHE_PIECE
+
+} ActionInput;
+
+typedef enum {
+    ACTION_TYPE_MOVE,
+    ACTION_TYPE_ROTATE,
+    ACTION_TYPE_SPECIAL,
+
+} ActionType;
+
 typedef struct {
     int8_t x;
     int8_t y;
@@ -87,8 +104,8 @@ typedef struct {
 } Shape;
 
 typedef struct {
-    uint8_t name;
-    uint8_t type;
+    ActionInput input;
+    ActionType type;
 
 } Action;
 
