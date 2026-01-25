@@ -1,19 +1,17 @@
-﻿#include <stdint.h>
+﻿#pragma once
+
+#include <stdint.h>
 #include <windows.h>
 
-#pragma once
-
 // BOARD CONSTANTS
-#define CELLROWS 20 // DEFAULT 20
-#define CELLCOLS 10 // DEFAULT 10
+#define TETROMINO_CELL_ROWS 20 // DEFAULT 20
+#define TETROMINO_CELL_COLS 10 // DEFAULT 10
 
-#define ROWS (CELLROWS*1) // DEFAULT (CELLROWS*1)
-#define COLS (CELLCOLS*2) // DEFAULT (CELLROWS*2)
+#define TERMINAL_ROWS (TETROMINO_CELL_ROWS*1) // DEFAULT (TETROMINO_CELL_ROWS*1)
+#define TERMINAL_COLS (TETROMINO_CELL_COLS*2) // DEFAULT (TETROMINO_CELL_ROWS*2)
 
-#define BOARD_HEIGHT (ROWS+2)
-#define BOARD_WIDTH (COLS+2)
-
-#define CELL "\u2588\u2588"
+#define BOARD_HEIGHT (TERMINAL_ROWS+2)
+#define BOARD_WIDTH (TERMINAL_COLS+2)
 
 // BORDERS
 #define BORDER_WIDTH 1
@@ -49,6 +47,7 @@
 
 #define NEEDS_KICK_FROM_RIGHT -1
 #define NEEDS_KICK_FROM_LEFT -2
+#define NEEDS_KICK_FROM_TOP -3
 
 // TETROMINOES
 #define _I 0
@@ -60,19 +59,22 @@
 #define _L 6
 
 // DEFAULT SHAPE SPAWN
-#define DEFAULT_X 3
+#define DEFAULT_X (TETROMINO_CELL_COLS/2-1)
 #define DEFAULT_Y 0
 #define DEFAULT_ROTATION 0
 
 // CELL
 #define FILLED_CELL L"██"
 
+#define HALF_CELL L'█'
+#define EMPTY_HALF_CELL L' '
+
 // BAG RANDOMIZER
 #define BAG_SIZE 7
 
 // HARDCODED TETROMINOES
 extern const int8_t _tetrominoes[7][4][4][4];
-extern const WORD _colors[7][2];
+extern const WORD _colors[7];
 
 // GLOBALS
 typedef struct {
@@ -80,7 +82,7 @@ typedef struct {
     int8_t y;
     int8_t shape;
     int8_t rotation;
-    int8_t borderedBoardWithoutShape[CELLROWS + 2][CELLCOLS + 2];
+    int8_t borderedBoardWithoutShape[TETROMINO_CELL_ROWS + 2][TETROMINO_CELL_COLS + 2];
 
 } Shape;
 
@@ -90,22 +92,15 @@ typedef struct {
 
 } Action;
 
+typedef struct {
+    uint8_t index;
+    uint8_t shapes[BAG_SIZE];
+    
+} Bag;
 
-// FUNCTION TEMPLATES
+typedef struct {
+    uint32_t score;
+    uint32_t previousScore;
+    uint32_t highScore;
 
-// conout.c (Console Output)
-
-// INITIAL SETUP
-void initializeDisplay();
-void printBorder(HANDLE* h);
-void printSideBoxesBorder(HANDLE* h, int8_t mode);
-void printControls(HANDLE* h);
-void initializeScoreDisplay(HANDLE* h);
-
-// REFRESH DISPLAY
-COORD getDisplayPositionOfCell(int8_t xCellPos, int8_t yCellPos);
-void refreshBoardDisplay(HANDLE* h, int8_t boardLayer[CELLROWS][CELLCOLS], WORD baseConsoleAttributes);
-void getShapeFootprint(const Shape* shape, bool output[4]);
-void updateShapeShadow(Shape* shape, HANDLE* h);
-void changeSideBoxDisplayShape(int8_t shape, int8_t mode, HANDLE* h, WORD baseConsoleAttributes);
-void updateScoreDisplay(int score, HANDLE* h);
+} Scores;

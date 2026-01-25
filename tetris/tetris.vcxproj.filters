@@ -21,12 +21,27 @@
     <ClCompile Include="shapes.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="conout.c">
+    <ClCompile Include="display.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="score.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="board.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tetris.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="display.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="score.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="board.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
