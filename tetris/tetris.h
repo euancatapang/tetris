@@ -56,15 +56,13 @@
 // MOVE SHAPE DOWN INTERVAL
 #define MOVE_DOWN_INTERVAL_MS 1000
 
-// HARDCODED TETROMINOES
-extern const int8_t _tetrominoes[7][4][4][4];
-extern const WORD _colors[7];
+// KICK TABLE
+#define KICK_TEST_COUNT 5
+#define KICK_TEST(start, end) (start*10 + end)
 
 typedef enum {
     PLACE_INVALID,
     PLACE_VALID,
-    PLACE_KICK_FROM_LEFT,
-    PLACE_KICK_FROM_RIGHT
 
 } PlacementValidity;
 
@@ -97,6 +95,12 @@ typedef enum {
 typedef struct {
     int8_t x;
     int8_t y;
+
+} Coord;
+
+typedef struct {
+    int8_t x;
+    int8_t y;
     int8_t shape;
     int8_t rotation;
     int8_t borderedBoardWithoutShape[TETROMINO_CELL_ROWS + 2][TETROMINO_CELL_COLS + 2];
@@ -121,3 +125,8 @@ typedef struct {
     uint32_t highScore;
 
 } Scores;
+
+// HARDCODED TETROMINOES
+extern const int8_t _tetrominoes[7][4][4][4];
+extern const WORD _colors[7];
+extern const Coord _kickTable[2][8][KICK_TEST_COUNT];

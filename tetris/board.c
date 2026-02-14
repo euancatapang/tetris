@@ -32,7 +32,7 @@ void setupVirtualBoardWithBorders(int8_t destination[TETROMINO_CELL_ROWS + 2][TE
     }
 }
 
-PlacementValidity simulateShapePlacement(const Shape* shape, ActionType mode, int8_t testPlaceX, int8_t testPlaceY) {
+PlacementValidity simulateShapePlacement(const Shape* shape, int8_t testPlaceX, int8_t testPlaceY) {
     // Constrain starts and ends to between 0 and TETROMINO_CELL_COLS + 2
     int8_t startX = (testPlaceX < 0) ? 0 : testPlaceX;
     int8_t endX = (startX + 4 > TETROMINO_CELL_COLS + 2) ? TETROMINO_CELL_COLS + 2 : startX + 4;
@@ -51,30 +51,20 @@ PlacementValidity simulateShapePlacement(const Shape* shape, ActionType mode, in
             int8_t tetrominoCellY = virtualRow - testPlaceY;
             int8_t currentCellIsFilled = _tetrominoes[shape->shape][shape->rotation][tetrominoCellY][tetrominoCellX];
 
-            if (currentCellIsFilled && currentCellSum > 1) {
-
-                if (mode == ACTION_TYPE_ROTATE && tetrominoCellX >= 2) {
-                    validity = PLACE_KICK_FROM_RIGHT;
-                }
-                else if (mode == ACTION_TYPE_ROTATE && tetrominoCellX <= 1) {
-                    validity = PLACE_KICK_FROM_LEFT;
-                }
-                else {
-                    return PLACE_INVALID; // Means placement is invalid
-                }
-            }
+            if (currentCellIsFilled && currentCellSum > 1)
+                return PLACE_INVALID;
         }
     }
     return validity;
 }
 
 // Test layer is a board without the piece we're trying to move.
-PlacementValidity testPlaceValidity(const Shape* shape, ActionType mode) {
+PlacementValidity testPlaceValidity(const Shape* shape) {
     // To compensate for offset caused by border
     int8_t testPlaceX = shape->x + 1;
     int8_t testPlaceY = shape->y + 1;
 
-    return simulateShapePlacement(shape, mode, testPlaceX, testPlaceY);
+    return simulateShapePlacement(shape, testPlaceX, testPlaceY);
 }
 
 // Returns greatest Y value (lowest place on the board) the shape can be placed; Returns -1 if no valid placement
@@ -87,7 +77,7 @@ int8_t getLowestValidPlace(const Shape* shape) {
 
     for (; testPlaceY <= TETROMINO_CELL_ROWS; testPlaceY++) {
 
-        if (simulateShapePlacement(shape, ACTION_TYPE_MOVE, testPlaceX, testPlaceY) == PLACE_INVALID) {
+        if (simulateShapePlacement(shape, testPlaceX, testPlaceY) == PLACE_INVALID) {
             return previousY;
         }
         previousY = testPlaceY - 1;
@@ -109,7 +99,7 @@ void fallShape(Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CE
 
 // Returns true if place succeeded
 bool placeShape(const Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
-    if (testPlaceValidity(shape, ACTION_TYPE_MOVE) == PLACE_VALID) {
+    if (testPlaceValidity(shape) == PLACE_VALID) {
         writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
         return true;
     }
@@ -131,7 +121,7 @@ bool moveShape(ActionInput direction, Shape* shape, int8_t boardLayer[TETROMINO_
     shape->x += xOffset;
     shape->y += yOffset;
 
-    PlacementValidity validity = testPlaceValidity(shape, ACTION_TYPE_MOVE);
+    PlacementValidity validity = testPlaceValidity(shape);
 
     if (validity == PLACE_VALID) {
         // Move shape to original place then clear it
@@ -164,48 +154,87 @@ bool rotateShape(ActionInput rotateTowards, Shape* shape, int8_t boardLayer[TETR
 
     int8_t originalRotation = shape->rotation;
     int8_t originalX = shape->x;
+    int8_t originalY = shape->y;
+
     shape->rotation = newRotation;
 
-    PlacementValidity validity = testPlaceValidity(shape, ACTION_TYPE_ROTATE);
+    uint8_t kickTestRowIndex;
+
+    // Determine kick tests to use based on source to dest rotation
+    switch (KICK_TEST(originalRotation, newRotation)) {
+        case KICK_TEST(0, 1): kickTestRowIndex = 0; break;
+        case KICK_TEST(1, 0): kickTestRowIndex = 1; break;
+        case KICK_TEST(1, 2): kickTestRowIndex = 2; break;
+        case KICK_TEST(2, 1): kickTestRowIndex = 3; break;
+        case KICK_TEST(2, 3): kickTestRowIndex = 4; break;
+        case KICK_TEST(3, 2): kickTestRowIndex = 5; break;
+        case KICK_TEST(3, 0): kickTestRowIndex = 6; break;
+        case KICK_TEST(0, 3): kickTestRowIndex = 7; break;
+    }
+
+    PlacementValidity validity = PLACE_INVALID;
+
+    for (uint8_t i = 0; i < KICK_TEST_COUNT && validity == PLACE_INVALID; i++) {
+        Coord currentOffset;
+        
+        if (shape->shape == _I)
+            currentOffset = _kickTable[1][kickTestRowIndex][i];
+        else
+            currentOffset = _kickTable[0][kickTestRowIndex][i];
+
+        shape->x = originalX + currentOffset.x;
+        shape->y = originalY + currentOffset.y;
+
+        validity = testPlaceValidity(shape);
+    }
 
     if (validity == PLACE_VALID) {
+        int8_t newX = shape->x;
+        int8_t newY = shape->y;
+
         shape->rotation = originalRotation;
+        shape->x = originalX;
+        shape->y = originalY;
         writeShapeToBoard(shape, CLEAR, boardLayer);
 
         shape->rotation = newRotation;
+        shape->x = newX;
+        shape->y = newY;
         writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
 
         return true;
     }
-    else if (validity == PLACE_KICK_FROM_LEFT || validity == PLACE_KICK_FROM_RIGHT) {
-        // To handle I shape edge case
-        if (shape->shape == _I && shape->x == -2 && validity == PLACE_KICK_FROM_LEFT)
-            shape->x += 2;
-        else if (shape->shape == _I && shape->x == TETROMINO_CELL_COLS - 2 && validity == PLACE_KICK_FROM_RIGHT)
-            shape->x -= 2;
-        else if (validity == PLACE_KICK_FROM_RIGHT)
-            shape->x -= 1;
-        else if (validity == PLACE_KICK_FROM_LEFT)
-            shape->x += 1;
 
-        if (testPlaceValidity(shape, ACTION_TYPE_MOVE)) {
-            int8_t newX = shape->x;
-            
-            shape->rotation = originalRotation;
-            shape->x = originalX;
-            writeShapeToBoard(shape, CLEAR, boardLayer);
+    //else if (validity == PLACE_KICK_FROM_LEFT || validity == PLACE_KICK_FROM_RIGHT) {
+    //    // To handle I shape edge case
+    //    if (shape->shape == _I && shape->x == -2 && validity == PLACE_KICK_FROM_LEFT)
+    //        shape->x += 2;
+    //    else if (shape->shape == _I && shape->x == TETROMINO_CELL_COLS - 2 && validity == PLACE_KICK_FROM_RIGHT)
+    //        shape->x -= 2;
+    //    else if (validity == PLACE_KICK_FROM_RIGHT)
+    //        shape->x -= 1;
+    //    else if (validity == PLACE_KICK_FROM_LEFT)
+    //        shape->x += 1;
 
-            shape->rotation = newRotation;
-            shape->x = newX;
-            writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
+    //    if (testPlaceValidity(shape, ACTION_TYPE_MOVE)) {
+    //        int8_t newX = shape->x;
+    //        
+    //        shape->rotation = originalRotation;
+    //        shape->x = originalX;
+    //        writeShapeToBoard(shape, CLEAR, boardLayer);
 
-            return true;
-        }
-    }
+    //        shape->rotation = newRotation;
+    //        shape->x = newX;
+    //        writeShapeToBoard(shape, PLACE_SHAPE, boardLayer);
+
+    //        return true;
+    //    }
+    //}
 
     // If rotation is invalid
     shape->rotation = originalRotation;
     shape->x = originalX;
+    shape->y = originalY;
     return false;
 }
 
