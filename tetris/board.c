@@ -4,7 +4,7 @@
 
 #include "tetris.h"
 
-void writeShapeToBoard(const Shape* shape, const int8_t mode, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
+void writeShapeToBoard(const Shape* shape, int8_t mode, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
     for (int8_t row = shape->y; row < shape->y + 4; row++) {
         for (int8_t col = shape->x; col < shape->x + 4; col++) {
             
@@ -92,6 +92,8 @@ int8_t getLowestValidPlace(const Shape* shape) {
         }
         previousY = testPlaceY - 1;
     }
+
+    return -1;
 }
 
 void fallShape(Shape* shape, int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
@@ -179,6 +181,8 @@ bool rotateShape(ActionInput rotateTowards, Shape* shape, int8_t boardLayer[TETR
         // To handle I shape edge case
         if (shape->shape == _I && shape->x == -2 && validity == PLACE_KICK_FROM_LEFT)
             shape->x += 2;
+        else if (shape->shape == _I && shape->x == TETROMINO_CELL_COLS - 2 && validity == PLACE_KICK_FROM_RIGHT)
+            shape->x -= 2;
         else if (validity == PLACE_KICK_FROM_RIGHT)
             shape->x -= 1;
         else if (validity == PLACE_KICK_FROM_LEFT)
@@ -230,7 +234,7 @@ bool rowIsFilled(int8_t row[TETROMINO_CELL_COLS]) {
 }
 
 // Clears rows filled upon committing a shape; Returns how many rows cleared
-int8_t getRowsCleared(int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
+uint8_t getRowsCleared(int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS]) {
     uint8_t rowsCleared = 0;
 
     for (uint8_t row = 0; row < TETROMINO_CELL_ROWS; row++) {
