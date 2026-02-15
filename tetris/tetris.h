@@ -60,6 +60,8 @@
 #define KICK_TEST_COUNT 5
 #define KICK_TEST(start, end) (start*10 + end)
 
+#define EXCEEDS(x, y) (x >= TETROMINO_CELL_COLS || x < 0 || y >= TETROMINO_CELL_ROWS || y < 0)
+
 typedef enum {
     PLACE_INVALID,
     PLACE_VALID,
@@ -103,7 +105,7 @@ typedef struct {
     int8_t y;
     int8_t shape;
     int8_t rotation;
-    int8_t borderedBoardWithoutShape[TETROMINO_CELL_ROWS + 2][TETROMINO_CELL_COLS + 2];
+    int8_t borderedBoardWithoutShape[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS];
 
 } Shape;
 

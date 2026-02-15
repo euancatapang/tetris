@@ -89,7 +89,7 @@ int main() {
 
     // Starting shape
     int8_t boardLayer[TETROMINO_CELL_ROWS][TETROMINO_CELL_COLS] = { 0 }; // [ROW][COL] = 20, 10
-    Shape currentShape;
+    Shape currentShape = { 0 };
 
     // Bag randomization
     srand((uint32_t)GetTickCount());
@@ -103,7 +103,7 @@ int main() {
     MoveDownStatus moveDownStatus = MOVE_DOWN_FAIL;
 
     int8_t cachedPiece = -1; // Indicating no piece has been cached
-    int8_t cachePieceAllowed = false;
+    bool cachePieceAllowed = false;
 
     while (1) {
         Sleep(10);
@@ -111,16 +111,15 @@ int main() {
         // If shape is committed to place point
         if (moveDownStatus == MOVE_DOWN_FAIL) {
             updateScores(&terminal, &scores, getRowsCleared(boardLayer));
-
+            
             // Commits previous shape and creates a new one
+            memcpy(currentShape.borderedBoardWithoutShape, boardLayer, TETROMINO_CELL_ROWS * TETROMINO_CELL_COLS * sizeof(int8_t));
             int8_t newShape = nextShape;
             nextShape = getShapeFromBag(&bag);
 
-            createShape(&currentShape, DEFAULT_X, DEFAULT_Y, newShape, DEFAULT_ROTATION);
-            setupVirtualBoardWithBorders(currentShape.borderedBoardWithoutShape, boardLayer);
-
             // Check if shape can be placed. If not, you've lost.
-            if (!testPlaceValidity(&currentShape, ACTION_TYPE_MOVE))
+            createShape(&currentShape, DEFAULT_X, DEFAULT_Y, newShape, DEFAULT_ROTATION);
+            if (simulateShapePlacement(&currentShape, currentShape.x, currentShape.y) == PLACE_INVALID)
                 break;
 
             // Update visuals
